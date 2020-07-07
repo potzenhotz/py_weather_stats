@@ -32,12 +32,20 @@ class weather_station:
         self.df_weather_data["period"] = "2000-" + self.df_weather_data[
             "MESS_DATUM"
         ].dt.strftime("%m-%d")
+        parameters = ["RSK", "SDK", "PM"]
+        for parameter in parameters:
+            self.df_weather_data[parameter] = self.df_weather_data[parameter].apply(
+                lambda x: x if x >= 0 else None
+            )
 
     def create_temp_df(self):
         self.create_weather_df()
         self.df_temp = self.df_weather_data.pivot(
             index="period", columns="year", values="TMK"
         ).reset_index()
+        self.df_temp_melt = pd.melt(
+            self.df_weather_data, id_vars=["period", "year"], value_vars=["TMK"]
+        )
 
     def create_weather_df(self, testing: bool = False):
         self.read_csv()
@@ -62,7 +70,7 @@ class weather_station:
 
 if __name__ == "__main__":
     ws = weather_station()
-    # df_weather = ws.get_weather_df(testing=True)
-    # print(df_weather.head(40))
-    df_temp = ws.get_temp_df(testing=True)
-    # print(df_temp.head(40))
+    df_weather = ws.get_weather_df(testing=True)
+    print(df_weather.head(40))
+    df_temp = ws.get_temp_df(testing=False)
+    print(df_temp.head(400))
