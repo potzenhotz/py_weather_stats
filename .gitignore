@@ -2,3 +2,4 @@ env/
 .vscode
 weather_stats/data
 *pyc
+spielwiese.py
