@@ -32,7 +32,7 @@ class weather_station:
         self.df_weather_data["period"] = "2000-" + self.df_weather_data[
             "MESS_DATUM"
         ].dt.strftime("%m-%d")
-        parameters = ["RSK", "SDK", "PM"]
+        parameters = ["RSK", "SDK", "PM", "NM"]
         for parameter in parameters:
             self.df_weather_data[parameter] = self.df_weather_data[parameter].apply(
                 lambda x: x if x >= 0 else None
