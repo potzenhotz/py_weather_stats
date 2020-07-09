@@ -32,6 +32,9 @@ class weather_station:
         self.df_weather_data["period"] = "2000-" + self.df_weather_data[
             "MESS_DATUM"
         ].dt.strftime("%m-%d")
+        self.df_weather_data["period_int"] = pd.to_numeric(
+            self.df_weather_data["MESS_DATUM"].dt.strftime("%m")
+        )
         parameters = ["RSK", "SDK", "PM", "NM"]
         for parameter in parameters:
             self.df_weather_data[parameter] = self.df_weather_data[parameter].apply(
@@ -71,6 +74,19 @@ class weather_station:
 if __name__ == "__main__":
     ws = weather_station()
     df_weather = ws.get_weather_df(testing=True)
-    print(df_weather.head(40))
-    df_temp = ws.get_temp_df(testing=False)
-    print(df_temp.head(400))
+    # print(df_weather.head(40))
+    # df_temp = ws.get_temp_df(testing=False)
+    # print(df_temp.head(400))
+    df_filtered = df_weather[(df_weather.year >= 1970) & (df_weather.year <= 1977)]
+    df_filtered = df_weather[
+        (df_weather.period_int >= 20000101) & (df_weather.period_int <= 20000305)
+    ]
+    # print(df_filtered)
+    # print(df_weather["period_int"].min(), df_weather["period_int"].max())
+    print(
+        {
+            str(period): str(period)
+            for period in df_weather["period_int"].unique()
+            # if period % 2 == 0
+        }
+    )
