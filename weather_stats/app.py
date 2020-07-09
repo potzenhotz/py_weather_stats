@@ -44,7 +44,7 @@ app.layout = html.Div(
                     id="year-slider",
                     min=df_weather["year"].min(),
                     max=df_weather["year"].max(),
-                    value=[df_weather["year"].min(), df_weather["year"].max()],
+                    value=[2000, df_weather["year"].max()],
                     marks={
                         str(year): str(year)
                         for year in df_weather["year"].unique()
@@ -108,13 +108,13 @@ def update_figure(selected_years, selected_period):
 
     fig_press = px.line(df_filtered, x="period", y="PM", color="year", title="Pressure")
     fig_press.update_layout(xaxis=dict(tickformat="%d-%b"))
-    fig_precip = px.line(
+    fig_precip = px.bar(
         df_filtered, x="period", y="RSK", color="year", title="Precipitation"
     )
     fig_precip.update_layout(xaxis=dict(tickformat="%d-%b"))
 
-    fig_cover = px.line(
-        df_filtered, x="period", y="NM", color="year", title="Cloud Coverage"
+    fig_cover = px.scatter(
+        df_filtered, x="period", y="NM", color="year", title="Cloud Coverage",
     )
     fig_cover.update_layout(xaxis=dict(tickformat="%d-%b"))
 
