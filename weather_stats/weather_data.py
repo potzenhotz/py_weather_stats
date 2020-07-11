@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import sys
+import requests
 
 
 class weather_station:
@@ -8,11 +9,25 @@ class weather_station:
         self.station = station
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
 
-    def read_csv(self):
-        self.df_weather_data = pd.read_csv(
-            f"{self.dir_path}/data/produkt_klima_tag_19350101_20191231_01303.txt",
-            sep=";",
-        )
+    def get_raw_staion_list(
+        self, file_name: str = "weather_stats/data/raw_station_list.txt"
+    ):
+        self.station_description_url = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/historical/KL_Tageswerte_Beschreibung_Stationen.txt"
+        r = requests.get(self.station_description_url, allow_redirects=True)
+        open(file_name, "wb").write(r.content)
+
+    def get_station_df(self, file_name: str = "weather_stats/data/station_list.csv"):
+        self.df_stations = pd.read_csv(file_name, delimiter=";")
+        return self.df_stations
+
+    def check_station_downloaded(self, station_name: str = "Essen-Bredeney"):
+        return True
+
+    def get_station_data(self, station_name: str = "Essen-Bredeney"):
+        pass
+
+    def read_csv(self, file_name: str):
+        self.df_weather_data = pd.read_csv(file_name, sep=";",)
 
     def transform_weather_data(self):
         # Remove whitespaces from header
@@ -50,7 +65,11 @@ class weather_station:
             self.df_weather_data, id_vars=["period", "year"], value_vars=["TMK"]
         )
 
-    def create_weather_df(self, testing: bool = False):
+    def create_weather_df(
+        self, station_name: str = "Essen-Bredeney", testing: bool = False
+    ):
+        if not self.check_station_downloaded():
+            self.get_station_data()
         self.read_csv()
         self.transform_weather_data()
 
@@ -83,10 +102,4 @@ if __name__ == "__main__":
     ]
     # print(df_filtered)
     # print(df_weather["period_int"].min(), df_weather["period_int"].max())
-    print(
-        {
-            str(period): str(period)
-            for period in df_weather["period_int"].unique()
-            # if period % 2 == 0
-        }
-    )
+    ws.get_raw_staion_list()
