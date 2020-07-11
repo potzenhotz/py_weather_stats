@@ -9,8 +9,9 @@ import weather_data as wd
 
 
 ws = wd.weather_station()
-df_weather = ws.get_weather_df(testing=True)
+# df_weather = ws.get_weather_df(testing=True)
 df_weather = ws.get_weather_df()
+df_stations = ws.get_station_df()
 # df_temp = ws.get_temp_df()
 
 external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
@@ -36,6 +37,20 @@ app.layout = html.Div(
     """
         ),
         html.Br(),
+        html.Div(
+            [
+                html.Label("Station:", id="station-label"),
+                dcc.Dropdown(
+                    id="station_dropdown",
+                    options=[
+                        {"label": i, "value": i}
+                        for i in df_stations.Stationsname.unique()
+                    ],
+                    placeholder="Select weather station...",
+                    value="Essen-Bredeney",
+                ),
+            ]
+        ),
         html.Br(),
         html.Div(
             [
