@@ -10,8 +10,8 @@ import weather_data as wd
 
 ws = wd.weather_station()
 # df_weather = ws.get_weather_df(testing=True)
-df_weather = ws.get_weather_df()
-df_stations = ws.get_station_df()
+df_weather = ws.df_weather_data
+df_stations = ws.df_stations_info
 # df_temp = ws.get_temp_df()
 
 external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
@@ -105,10 +105,14 @@ app.layout = html.Div(
         Output("precip_graph", "figure"),
         Output("cover_graph", "figure"),
     ],
-    [Input("year-slider", "value"), Input("period-slider", "value")],
+    [
+        Input("year-slider", "value"),
+        Input("period-slider", "value"),
+        Input("sation-dropdown", "value"),
+    ],
 )
-def update_figure(selected_years, selected_period):
-    # df_filtered = df_weather[df_weather.year == selected_year]
+def update_figure(selected_years, selected_period, selected_station):
+    # TODO create mechanism which checks if station name changed and call change_station_data
     df_filtered = df_weather[
         (df_weather.year >= selected_years[0]) & (df_weather.year <= selected_years[1])
     ]

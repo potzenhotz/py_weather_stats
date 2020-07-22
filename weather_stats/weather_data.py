@@ -2,32 +2,132 @@ import pandas as pd
 import os
 import sys
 import requests
+from bs4 import BeautifulSoup
+import zipfile
 
 
 class weather_station:
-    def __init__(self, station: str = "Essen"):
-        self.station = station
+    def __init__(self, station_name: str = "Essen-Bredeney"):
+        self.station_name = station_name
+        self.data_dir = f"weather_stats{os.sep}data{os.sep}"
+        self.dwd_url_body = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/historical/"
+        self.dwd_url_file_prefix = "tageswerte_KL_"
+        self.dwd_url_station_info = (
+            f"{self.dwd_url_body}KL_Tageswerte_Beschreibung_Stationen.txt"
+        )
+        self.station_list_file_name = "station_list.csv"
+        self.station_list_file_path = f"{self.data_dir}{self.station_list_file_name}"
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.station_is_downloaded = False
+        self.station_file_dir = f"{self.data_dir}{self.station_name}"
+        self.station_file_path_zip = f"{self.data_dir}{self.station_name}.zip"
+        self.station_file_prefix = "produkt_klima_tag_"
+        self.station_file_suffix = ".txt"
+        self.define_core_station_info()
+        self.check_station_exists()
+        if not self.station_exists:
+            print("Station does not exist")
+            sys.exit()
+        self.create_weather_df(station_name=self.station_name)
 
     def get_raw_staion_list(
         self, file_name: str = "weather_stats/data/raw_station_list.txt"
     ):
-        self.station_description_url = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/historical/KL_Tageswerte_Beschreibung_Stationen.txt"
-        r = requests.get(self.station_description_url, allow_redirects=True)
+        """This function downloads the raw station names file.
+        
+        The file needs to be transformed to csv manually, due to lack of sufficient delimiter.
+
+        Args:
+            file_name: Output file name
+
+        Returns:
+           None
+        """
+        r = requests.get(self.dwd_url_station_info, allow_redirects=True)
         open(file_name, "wb").write(r.content)
 
-    def get_station_df(self, file_name: str = "weather_stats/data/station_list.csv"):
-        self.df_stations = pd.read_csv(file_name, delimiter=";")
-        return self.df_stations
+    def create_stations_info(self):
+        self.df_stations_info = pd.read_csv(self.station_list_file_path, delimiter=";")
 
-    def check_station_downloaded(self, station_name: str = "Essen-Bredeney"):
-        return True
+    def change_station_df(self, station_name: str):
+        self.station_name = station_name
+        self.check_station_exists()
+        if not self.station_exists:
+            print("Station does not exist")
+            sys.exit()
+        create_weather_df()
 
-    def get_station_data(self, station_name: str = "Essen-Bredeney"):
-        pass
+    def check_station_downloaded(self):
+        self.station_file_downloaded = False
+        if os.path.isdir(self.station_file_dir):
+            print(f"Station directory is available: {self.station_file_dir}")
+            for file_name in os.listdir(self.station_file_dir):
+                if file_name.startswith(
+                    self.station_file_prefix
+                ) and file_name.endswith(self.station_file_suffix):
+                    print(f"Station file is available: {file_name}")
+                    self.station_file_downloaded = True
 
-    def read_csv(self, file_name: str):
-        self.df_weather_data = pd.read_csv(file_name, sep=";",)
+    def check_station_exists(self):
+        if self.station_name in self.df_stations_info.values:
+            print(f"Station {self.station_name} exists")
+            self.station_exists = True
+        else:
+            print(f"Station {self.station_name} does not exist")
+            self.station_exists = False
+
+    def define_core_station_info(self):
+        # dwd station description bis_datum does not match bis_datum in file name :(
+        if not hasattr(self, "df_station_info"):
+            self.create_stations_info()
+        self.df_station_info = self.df_stations_info[
+            self.df_stations_info["Stationsname"] == self.station_name
+        ]
+        self.station_id = f"{self.df_station_info['Stations_id'].item():05}"
+        self.station_start_date = self.df_station_info["von_datum"].item()
+        dwd_link_list = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/historical/"
+        dwd_list = requests.get(dwd_link_list)
+        self.dwd_url_station_part = (
+            f"{self.dwd_url_file_prefix}{self.station_id}_{self.station_start_date}"
+        )
+        soup = BeautifulSoup(dwd_list.text, "html.parser")
+        for link in soup.findAll("a"):
+            file_name = str(link.get("href"))
+            if self.dwd_url_station_part in file_name:
+                self.dwd_file_name = file_name
+        if not hasattr(self, "dwd_file_name"):
+            print(f"Station {self.station_name} file on dwd server not found")
+            sys.exit()
+
+    def define_station_url(self):
+        self.dwd_url_station = f"{self.dwd_url_body}{self.dwd_file_name}"
+
+    def define_station_file_name(self):
+        for file_name in os.listdir(self.station_file_dir):
+            if file_name.startswith(self.station_file_prefix) and file_name.endswith(
+                self.station_file_suffix
+            ):
+                station_file_name = file_name
+        self.station_file_path = f"{self.station_file_dir}{os.sep}{station_file_name}"
+
+    def download_station_file(self):
+        self.define_station_url()
+        r = requests.get(self.dwd_url_station, allow_redirects=True)
+        open(self.station_file_path_zip, "wb").write(r.content)
+
+    def unzip_station_file(self):
+        with zipfile.ZipFile(self.station_file_path_zip, "r") as zip_ref:
+            zip_ref.extractall(self.station_file_dir)
+
+    def get_station_data(self):
+        self.check_station_downloaded()
+        if not self.station_file_downloaded:
+            self.download_station_file()
+            self.unzip_station_file()
+        self.define_station_file_name()
+
+    def read_station_csv(self):
+        self.df_weather_data = pd.read_csv(self.station_file_path, sep=";",)
 
     def transform_weather_data(self):
         # Remove whitespaces from header
@@ -56,6 +156,18 @@ class weather_station:
                 lambda x: x if x >= 0 else None
             )
 
+    def create_weather_df(self):
+        self.download_station_data()
+        self.read_station_csv()
+        self.transform_weather_data()
+
+    def shrink_weather_df(self, testing: bool = False):
+        if not self.df_weather_data:
+            self.create_weather_df()
+        self.df_weather_data = (
+            self.df_weather_data["year"].astype(str).str.contains("197")
+        )
+
     def create_temp_df(self):
         self.create_weather_df()
         self.df_temp = self.df_weather_data.pivot(
@@ -64,23 +176,6 @@ class weather_station:
         self.df_temp_melt = pd.melt(
             self.df_weather_data, id_vars=["period", "year"], value_vars=["TMK"]
         )
-
-    def create_weather_df(
-        self, station_name: str = "Essen-Bredeney", testing: bool = False
-    ):
-        if not self.check_station_downloaded():
-            self.get_station_data()
-        self.read_csv()
-        self.transform_weather_data()
-
-    def get_weather_df(self, testing: bool = False):
-        self.create_weather_df()
-        if testing:
-            return self.df_weather_data[
-                (self.df_weather_data["year"].astype(str).str.contains("197"))
-            ]
-        else:
-            return self.df_weather_data
 
     def get_temp_df(self, testing: bool = False):
         self.create_temp_df()
@@ -92,14 +187,7 @@ class weather_station:
 
 if __name__ == "__main__":
     ws = weather_station()
-    df_weather = ws.get_weather_df(testing=True)
-    # print(df_weather.head(40))
-    # df_temp = ws.get_temp_df(testing=False)
-    # print(df_temp.head(400))
-    df_filtered = df_weather[(df_weather.year >= 1970) & (df_weather.year <= 1977)]
-    df_filtered = df_weather[
-        (df_weather.period_int >= 20000101) & (df_weather.period_int <= 20000305)
-    ]
-    # print(df_filtered)
-    # print(df_weather["period_int"].min(), df_weather["period_int"].max())
-    ws.get_raw_staion_list()
+    # ws.download_station_file()
+    # ws.define_station_file_name()
+    # ws.check_station_downloaded()
+    ws.check_station_exists()
