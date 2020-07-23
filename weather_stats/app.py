@@ -60,7 +60,7 @@ app.layout = html.Div(
                     id="year-slider",
                     min=df_weather["year"].min(),
                     max=df_weather["year"].max(),
-                    value=[2000, df_weather["year"].max()],
+                    value=[df_weather["year"].min(), df_weather["year"].max()],
                     marks={
                         str(year): str(year)
                         for year in df_weather["year"].unique()
@@ -105,6 +105,8 @@ app.layout = html.Div(
         Output("press_graph", "figure"),
         Output("precip_graph", "figure"),
         Output("cover_graph", "figure"),
+        Output("year-slider", "min"),
+        Output("year-slider", "max"),
     ],
     [
         Input("year-slider", "value"),
@@ -114,13 +116,22 @@ app.layout = html.Div(
 )
 def update_figure(selected_years, selected_period, selected_station):
     global df_weather
+    global current_station
     if current_station != selected_station:
         print(selected_station)
         ws.change_station_df(selected_station)
         df_weather = ws.df_weather_data
-    df_filtered = df_weather[
-        (df_weather.year >= selected_years[0]) & (df_weather.year <= selected_years[1])
-    ]
+        df_filtered = df_weather[
+            (df_weather.year >= df_weather["year"].min())
+            & (df_weather.year <= df_weather["year"].max())
+        ]
+    else:
+        print(f"updating years {selected_years}")
+        df_filtered = df_weather[
+            (df_weather.year >= selected_years[0])
+            & (df_weather.year <= selected_years[1])
+        ]
+    current_station = selected_station
     df_filtered = df_filtered[
         (df_filtered.period_int >= selected_period[0])
         & (df_filtered.period_int <= selected_period[1])
@@ -133,7 +144,12 @@ def update_figure(selected_years, selected_period, selected_station):
     fig_press = px.line(df_filtered, x="period", y="PM", color="year", title="Pressure")
     fig_press.update_layout(xaxis=dict(tickformat="%d-%b"))
     fig_precip = px.bar(
-        df_filtered, x="period", y="RSK", color="year", title="Precipitation"
+        df_filtered,
+        x="period",
+        y="RSK",
+        color="year",
+        title="Precipitation",
+        barmode="overlay",
     )
     fig_precip.update_layout(xaxis=dict(tickformat="%d-%b"))
 
@@ -142,7 +158,10 @@ def update_figure(selected_years, selected_period, selected_station):
     )
     fig_cover.update_layout(xaxis=dict(tickformat="%d-%b"))
 
-    return fig_temp, fig_press, fig_precip, fig_cover
+    year_min = df_weather["year"].min()
+    year_max = df_weather["year"].max()
+
+    return fig_temp, fig_press, fig_precip, fig_cover, year_min, year_max
 
 
 if __name__ == "__main__":
