@@ -28,7 +28,7 @@ class weather_station:
         if not self.station_exists:
             print("Station does not exist")
             sys.exit()
-        self.create_weather_df(station_name=self.station_name)
+        self.create_weather_df()
 
     def get_raw_staion_list(
         self, file_name: str = "weather_stats/data/raw_station_list.txt"
@@ -51,11 +51,16 @@ class weather_station:
 
     def change_station_df(self, station_name: str):
         self.station_name = station_name
+        self.station_file_dir = f"{self.data_dir}{self.station_name}"
+        if "/" in self.station_name:
+            self.station_file_path_zip = (
+                f"{self.data_dir}{self.station_name.replace('/','_')}.zip"
+            )
         self.check_station_exists()
         if not self.station_exists:
             print("Station does not exist")
             sys.exit()
-        create_weather_df()
+        self.create_weather_df()
 
     def check_station_downloaded(self):
         self.station_file_downloaded = False
@@ -100,6 +105,7 @@ class weather_station:
             sys.exit()
 
     def define_station_url(self):
+        self.define_core_station_info()
         self.dwd_url_station = f"{self.dwd_url_body}{self.dwd_file_name}"
 
     def define_station_file_name(self):
@@ -112,6 +118,8 @@ class weather_station:
 
     def download_station_file(self):
         self.define_station_url()
+        print(f"Station url: {self.dwd_url_station}")
+        print(f"ZIP file name: {self.station_file_path_zip}")
         r = requests.get(self.dwd_url_station, allow_redirects=True)
         open(self.station_file_path_zip, "wb").write(r.content)
 
@@ -155,9 +163,14 @@ class weather_station:
             self.df_weather_data[parameter] = self.df_weather_data[parameter].apply(
                 lambda x: x if x >= 0 else None
             )
+        parameters = ["TMK"]
+        for parameter in parameters:
+            self.df_weather_data[parameter] = self.df_weather_data[parameter].apply(
+                lambda x: x if x > -999 else None
+            )
 
     def create_weather_df(self):
-        self.download_station_data()
+        self.get_station_data()
         self.read_station_csv()
         self.transform_weather_data()
 
