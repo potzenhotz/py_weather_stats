@@ -4,23 +4,29 @@ import sys
 import requests
 from bs4 import BeautifulSoup
 import zipfile
+from pathlib import Path
+
+
+current_file_path = Path(__file__).parent.resolve()
 
 
 class weather_station:
     def __init__(self, station_name: str = "Essen-Bredeney"):
         self.station_name = station_name
-        self.data_dir = f"weather_stats{os.sep}data{os.sep}"
+        self.data_dir = Path(f"{current_file_path}/data")
         self.dwd_url_body = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/historical/"
         self.dwd_url_file_prefix = "tageswerte_KL_"
         self.dwd_url_station_info = (
             f"{self.dwd_url_body}KL_Tageswerte_Beschreibung_Stationen.txt"
         )
         self.station_list_file_name = "station_list.csv"
-        self.station_list_file_path = f"{self.data_dir}{self.station_list_file_name}"
+        self.station_list_file_path = Path(
+            f"{self.data_dir}/{self.station_list_file_name}"
+        )
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.station_is_downloaded = False
-        self.station_file_dir = f"{self.data_dir}{self.station_name}"
-        self.station_file_path_zip = f"{self.data_dir}{self.station_name}.zip"
+        self.station_file_dir = Path(f"{self.data_dir}/{self.station_name}")
+        self.station_file_path_zip = Path(f"{self.data_dir}/{self.station_name}.zip")
         self.station_file_prefix = "produkt_klima_tag_"
         self.station_file_suffix = ".txt"
         self.define_core_station_info()
@@ -31,10 +37,10 @@ class weather_station:
         self.create_weather_df()
 
     def get_raw_staion_list(
-        self, file_name: str = "weather_stats/data/raw_station_list.txt"
+        self, file_name: str = Path(f"{current_file_path}/data/raw_station_list.txt")
     ):
         """This function downloads the raw station names file.
-        
+
         The file needs to be transformed to csv manually, due to lack of sufficient delimiter.
 
         Args:
@@ -46,15 +52,15 @@ class weather_station:
         r = requests.get(self.dwd_url_station_info, allow_redirects=True)
         open(file_name, "wb").write(r.content)
 
-    def create_stations_info(self):
-        self.df_stations_info = pd.read_csv(self.station_list_file_path, delimiter=";")
+    def create_stations_info(self, station_list_file_path: Path) -> pd.DataFrame:
+        return pd.read_csv(self.station_list_file_path, delimiter=";")
 
     def change_station_df(self, station_name: str):
         self.station_name = station_name
-        self.station_file_dir = f"{self.data_dir}{self.station_name}"
+        self.station_file_dir = Path(f"{self.data_dir}/{self.station_name}")
         if "/" in self.station_name:
-            self.station_file_path_zip = (
-                f"{self.data_dir}{self.station_name.replace('/','_')}.zip"
+            self.station_file_path_zip = Path(
+                f"{self.data_dir}/{self.station_name.replace('/','_')}.zip"
             )
         self.check_station_exists()
         if not self.station_exists:
@@ -84,7 +90,7 @@ class weather_station:
     def define_core_station_info(self):
         # dwd station description bis_datum does not match bis_datum in file name :(
         if not hasattr(self, "df_station_info"):
-            self.create_stations_info()
+            self.df_station_info = create_stations_info()
         self.df_station_info = self.df_stations_info[
             self.df_stations_info["Stationsname"] == self.station_name
         ]
@@ -135,7 +141,10 @@ class weather_station:
         self.define_station_file_name()
 
     def read_station_csv(self):
-        self.df_weather_data = pd.read_csv(self.station_file_path, sep=";",)
+        self.df_weather_data = pd.read_csv(
+            self.station_file_path,
+            sep=";",
+        )
 
     def transform_weather_data(self):
         # Remove whitespaces from header
@@ -163,7 +172,7 @@ class weather_station:
             self.df_weather_data[parameter] = self.df_weather_data[parameter].apply(
                 lambda x: x if x >= 0 else None
             )
-        parameters = ["TMK"]
+        parameters = ["TMK", "FM", "FX"]
         for parameter in parameters:
             self.df_weather_data[parameter] = self.df_weather_data[parameter].apply(
                 lambda x: x if x > -999 else None

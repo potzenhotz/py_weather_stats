@@ -4,3 +4,4 @@ env/
 weather_stats/data
 *pyc
 spielwiese.py
+*data/

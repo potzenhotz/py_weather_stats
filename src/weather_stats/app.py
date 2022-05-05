@@ -1,14 +1,14 @@
 import os
 import dash
-import dash_html_components as html
-import dash_core_components as dcc
+from dash import html
+from dash import dcc
 from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
-import weather_data as wd
+from weather_data import weather_station
 
 
-ws = wd.weather_station()
+ws = weather_station()
 # df_weather = ws.get_weather_df(testing=True)
 df_weather = ws.df_weather_data
 df_stations = ws.df_stations_info
@@ -95,6 +95,7 @@ app.layout = html.Div(
         dcc.Graph(id="press_graph"),
         dcc.Graph(id="precip_graph"),
         dcc.Graph(id="cover_graph"),
+        dcc.Graph(id="wind_mean_graph"),
     ]
 )
 
@@ -105,6 +106,7 @@ app.layout = html.Div(
         Output("press_graph", "figure"),
         Output("precip_graph", "figure"),
         Output("cover_graph", "figure"),
+        Output("wind_mean_graph", "figure"),
         Output("year-slider", "min"),
         Output("year-slider", "max"),
     ],
@@ -136,6 +138,9 @@ def update_figure(selected_years, selected_period, selected_station):
         (df_filtered.period_int >= selected_period[0])
         & (df_filtered.period_int <= selected_period[1])
     ]
+    df_grp_period = df_filtered.groupby(["period"]).mean()
+    print(df_grp_period)
+
     fig_temp = px.line(
         df_filtered, x="period", y="TMK", color="year", title="Temperature"
     )
@@ -153,15 +158,28 @@ def update_figure(selected_years, selected_period, selected_station):
     )
     fig_precip.update_layout(xaxis=dict(tickformat="%d-%b"))
 
-    fig_cover = px.scatter(
-        df_filtered, x="period", y="NM", color="year", title="Cloud Coverage",
+    fig_cover = px.line(
+        df_grp_period,
+        x=df_grp_period.index,
+        y="NM",
+        # color="year",
+        title="Cloud Coverage",
     )
     fig_cover.update_layout(xaxis=dict(tickformat="%d-%b"))
+
+    fig_wind_mean = px.line(
+        df_filtered,
+        x="period",
+        y="FM",
+        color="year",
+        title="Wind Daily Mean",
+    )
+    fig_wind_mean.update_layout(xaxis=dict(tickformat="%d-%b"))
 
     year_min = df_weather["year"].min()
     year_max = df_weather["year"].max()
 
-    return fig_temp, fig_press, fig_precip, fig_cover, year_min, year_max
+    return fig_temp, fig_press, fig_precip, fig_cover, fig_wind_mean, year_min, year_max
 
 
 if __name__ == "__main__":
